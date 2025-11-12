@@ -12,6 +12,7 @@ bme = bme280.BME280(i2c=i2c)
 while True:
     led.toggle()
     print(bme.values)
-    time.sleep(1.5)
-    
+   # write(bme.values)
+    time.sleep(900)
+    #15 minutes
 
