@@ -11,10 +11,11 @@ bme = bme280.BME280(i2c=i2c)
 
 while True:
     led.toggle()
-    # print(bme.values)
     datafile = "data.text"
     file = open(datafile, "a")
-        file.write(bme.values)
+    data = bme.values\n
+    file.write(data)
+    file.flush()
     time.sleep(900)
     #15 minutes
 
