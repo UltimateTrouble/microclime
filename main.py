@@ -10,10 +10,14 @@ datafile = "data.txt"
 
 while True:
     led.toggle()
-    data = bme.values
-    timestamp = time.localtime()
-    timestamp_string = f"{timestamp[0]:04}-{timestamp[1]:02}-{timestamp[2]:02} {timestamp[3]:02}:{timestamp[4]:02}:{timestamp[5]:02}"
-    data_string = f"{timestamp_string}, Temperature: {data[0]}, Pressure: {data[1]}, Humidity: {data[2]}\n"
-    with open(datafile, "a") as file:
-        file.write(data_string)
-    time.sleep(1800)  # Sleep for 15 minutes (1800 seconds)
+    current_time = time.localtime()
+    hour = current_time[3]
+    minute = current_time[4]
+    if (minute == 0 or minute == 30):
+        data = bme.values
+        timestamp_string = f"{current_time[0]:04}-{current_time[1]:02}-{current_time[2]:02} {hour:02}:{minute:02}:{current_time[5]:02}"
+        data_string = f"{timestamp_string}, Temperature: {data[0]}, Pressure: {data[1]}, Humidity: {data[2]}\n"
+        with open(datafile, "a") as file:
+            file.write(data_string)
+        time.sleep(60)
+    time.sleep(1)
