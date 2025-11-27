@@ -3,23 +3,24 @@ import socket
 import network
 import machine
 from machine import Pin, I2C        
-import bme280                       
+import bme280
+import uasyncio as asyncio  # Import uasyncio
 
-ssid = '---'
-password = '---'
+ssid = 'TP-Link_3B00'
+password = '67783076'
 
-led = machine.Pin(15, machine.Pin.OUT)
-i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000)
+led = machine.Pin("LED", machine.Pin.OUT)
+i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=200000)
 bme = bme280.BME280(i2c=i2c)
 datafile = "data.txt"
 
-def connect():
+async def connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
+    print('Waiting for connection...')
     while not wlan.isconnected():
-        print('Waiting for connection...')
-        time.sleep(1)
+        await asyncio.sleep(1)
     ip = wlan.ifconfig()[0]
     print(f'Connected on {ip}')
     return ip
@@ -35,8 +36,8 @@ def open_socket(ip):
     except OSError as e:
         if e.errno == 98:  # Address already in use
             print("Address already in use. Retrying...")
-            time.sleep(2)  # Wait a moment before retrying
-            return open_socket(ip)  # Try binding again
+            time.sleep(2)
+            return open_socket(ip)
         else:
             print(f"Socket error: {e}")
             connection.close()
@@ -57,26 +58,49 @@ def webpage(reading):
     """
     return str(html)
 
-def serve(connection):
+async def serve(connection):
     while True:
         try:
-            temp, pressure, humidity = bme.values
-            reading = f'Temperature: {temp}, Humidity: {humidity}, Pressure: {pressure}'
+            print("Waiting for connection...")
             client = connection.accept()[0]
             request = client.recv(1024)
+            temp, pressure, humidity = bme.values
+            reading = f'Temperature: {temp}, Humidity: {humidity}, Pressure: {pressure}'
             html = webpage(reading)
             client.send(html)
             client.close()
-            led.toggle()
-
         except Exception as e:
             print(f"Error occurred: {e}")
-            time.sleep(1)          
+            await asyncio.sleep(1)
+
+async def log_data():
+    while True:
+        current_time = time.localtime()
+        hour = current_time[3]
+        minute = current_time[4]
+        
+        if minute == 0 or minute == 30:
+            data = bme.values
+            timestamp_string = f"{current_time[0]:04}-{current_time[1]:02}-{current_time[2]:02} {hour:02}:{minute:02}:{current_time[5]:02}"
+            data_string = f"{timestamp_string}, Temperature: {data[0]}, Pressure: {data[1]}, Humidity: {data[2]}\n"
+            with open(datafile, "a") as file:
+                file.write(data_string)
+        
+        await asyncio.sleep(60)  # Check every 30 seconds
+
+async def main():
+    ip = await connect()
+    connection = open_socket(ip)
+    
+    # Run both the server and logging tasks concurrently
+    await asyncio.gather(
+        serve(connection),
+        log_data()
+    )
+
 # Main execution
 try:
-    ip = connect()
-    connection = open_socket(ip)
-    serve(connection)
+    asyncio.run(main())
 except KeyboardInterrupt:
     print("Program stopped by user.")
 except OSError as e:
@@ -85,17 +109,3 @@ finally:
     if 'connection' in locals() and connection:
         connection.close()
         print("Socket closed.")
-        
-while True:
-    led.toggle()
-    current_time = time.localtime()
-    hour = current_time[3]
-    minute = current_time[4]
-    if (minute == 0 or minute == 30):
-        data = bme.values
-        timestamp_string = f"{current_time[0]:04}-{current_time[1]:02}-{current_time[2]:02} {hour:02}:{minute:02}:{current_time[5]:02}"
-        data_string = f"{timestamp_string}, Temperature: {data[0]}, Pressure: {data[1]}, Humidity: {data[2]}\n"
-        with open(datafile, "a") as file:
-            file.write(data_string)
-        time.sleep(60)
-    time.sleep(1)
