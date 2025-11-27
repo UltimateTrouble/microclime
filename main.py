@@ -5,8 +5,8 @@ import machine
 from machine import Pin, I2C        
 import bme280                       
 
-ssid = 'TP-Link_3B00'
-password = '67783076'
+ssid = '---'
+password = '---'
 
 led = machine.Pin(15, machine.Pin.OUT)
 i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000)
